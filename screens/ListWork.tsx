@@ -1,7 +1,9 @@
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     FlatList,
+    RefreshControl,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -11,21 +13,31 @@ import {
 import JobItem from './JobItem';
 
 function ListWork({ navigation }: { navigation: any }) {
-    const [refesh, setRefesh] = useState(false);
     const [listJob, setListJob] = useState<Array<any>>([]);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        axios
+            .get(`http://kiemtra.stecom.vn:8888/api/cong-viec/PDT0220466/get-all`)
+            .then(response => {
+                setRefreshing(false);
+                setListJob(response.data.items);
+            })
+            .catch(err => console.log(err));
+    }, []);
+
     useEffect(() => {
-        setRefesh(true);
         axios
             .get(`http://kiemtra.stecom.vn:8888/api/cong-viec/PDT0220466/get-all`)
             .then(response => {
                 setListJob(response.data.items);
             })
             .catch(err => console.log(err));
-    }, [refesh]);
+    }, []);
 
     const [name, setName] = useState('');
     const handleSearch = async (name: string) => {
-
         const searchRes = await axios.get(
             `http://kiemtra.stecom.vn:8888/api/cong-viec/PDT0220466/get-all?keyword=${name}`,
         );
@@ -64,18 +76,20 @@ function ListWork({ navigation }: { navigation: any }) {
             </View>
 
             {/* Body */}
-            <FlatList
-                data={listJob}
-                renderItem={({ item }) => (
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('Detail', { job: item })}>
-                        <JobItem job={item} />
-                    </TouchableOpacity>
-                )}
-                keyExtractor={item => item.id}
-                numColumns={1}
+            <ScrollView
                 style={{ marginTop: 20 }}
-            />
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }>
+                {listJob.length > 0 &&
+                    listJob.map((item, index) => (
+                        <TouchableOpacity
+                            key={index}
+                            onPress={() => navigation.navigate('Detail', { job: item })}>
+                            <JobItem job={item} />
+                        </TouchableOpacity>
+                    ))}
+            </ScrollView>
         </View>
     );
 }
